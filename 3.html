@@ -1,0 +1,238 @@
+<html>
+    <head>
+		<meta charset="UTF-8">
+		<title>lab_3_mzch!</title>
+	</head>
+	<body>
+        <canvas id="canvas" width="1280" height="720" style="border:5px solid #968CFF"></canvas>
+		<script>
+			var ctx=document.getElementById('canvas').getContext('2d');
+			var cR = document.getElementById('colorR');
+			var cG = document.getElementById('colorG');
+            var cB = document.getElementById('colorB');
+            var color = [0,0,0,255];
+			
+			class Polygon{
+				constructor(coords){
+					if( !(coords.length&1) && coords.length >= 4 ){
+                        this.points = coords;
+                        this.ptsLen = this.points.length;
+					} else {
+                        alert('Invalid points count:'+coords.length);
+                    }
+                }
+				
+				fill(){
+					let spl = new Object();
+					let rv = new Array();
+					for( var i=0; i < this.ptsLen; i+=2 ){
+						rv = line(this.points[i%this.ptsLen], this.points[(i+1)%this.ptsLen], this.points[(i+2)%this.ptsLen], this.points[(i+3)%this.ptsLen],true);
+						for(let j=0;j<rv.length;j++){
+							if(!spl[rv[j][1]]){
+								spl[rv[j][1]] = [];
+							}
+							spl[rv[j][1]].push(rv[j][0]);
+						}
+					}
+					for(let k in spl){
+                        line(spl[k][0], k-1+1, spl[k][spl[k].length-1], k-1+1);
+                    }
+                }
+
+				stroke(){
+					for( let i=0; i<this.ptsLen; i+=2 ){
+					    line(this.points[i%this.ptsLen], this.points[(i+1)%this.ptsLen], this.points[(i+2)%this.ptsLen], this.points[(i+3)%this.ptsLen]);
+					}
+				}
+			}
+
+			function putpixel(x, y){ 
+                ctx.putImageData(new ImageData(new Uint8ClampedArray(color), 1, 1), x, y);
+            }
+			
+			function square(xc, yc, sideLen,fill=false){
+				let half = Math.floor(sideLen/2);
+				let sq = new Polygon([xc-half, yc-half, xc+half, yc-half, xc+half, yc+half, xc-half, yc+half]);
+				if(!fill){
+                    sq.stroke();
+                } else {
+                    sq.fill();
+                }
+			}
+			
+			function triangle(pts, fill=false){
+				let tr = new Polygon([pts[0], pts[1], pts[2], pts[3], pts[4], pts[5]]);
+				if(!fill){
+                    tr.stroke();
+                } else {
+                    tr.fill();
+                }
+			}
+			
+			function circle(r, x0, y0, constructPolygon=false){
+				let constrPoly = new Array();
+				let x=0;
+				let y=r;
+				let d = 1-(2*r);
+				let e = 0;
+				while( y>=0 ){
+					putpixel(x0+x, y0+y);
+					putpixel(x0+x, y0-y);
+					putpixel(x0-x, y0+y);
+					putpixel(x0-x, y0-y);
+					if(constructPolygon){
+                        constrPoly.push(x0+x, y0+y, x0+x, y0-y, x0-x, y0+y, x0-x, y0-y);
+                    }
+					e=2*(y+d)-1;
+					if((d<0)&&(e<=0)){ 
+                        d+=2*(++x)+1;
+                        continue;
+                    }
+					if((d>0)&&(e>0)){ 
+                        d-=2*(--y)+1; 
+                        continue;
+                    }
+					d+=2*((++x)-(--y));
+				}
+				if(constructPolygon){
+                    return constrPoly;
+                }
+			}
+
+			function line(x0, y0, x1, y1, ejectXY=false){
+				let ret;
+				if(ejectXY){
+                    ret = new Array();
+                }
+				let x = x0;
+				let y = y0;
+				let e1; let e2;
+				let dx = Math.abs(x1-x0);
+				let dy = Math.abs(y1-y0);
+				let x_dir;
+				let y_dir;
+				x_dir = (x0 < x1) ? 1 : -1;
+				y_dir = (y0 < y1) ? 1 : -1;
+				e1 = dx-dy;
+				while( x != x1 || y != y1 ) {
+					putpixel(x, y);
+					if(ejectXY){
+                        ret.push([x,y]);
+                    }
+					e2=e1*2;
+					if(e2 > -dy) {
+						e1 -= dy;
+						x += x_dir;
+					}
+					if(e2 < dx) {
+						e1 += dx;
+						y += y_dir;
+					}
+				}
+				if(ejectXY){
+                    return ret;
+                }
+            }
+
+			function drawSpline(arr, offX, offY) {
+                var coords = [];
+                var num = 0;
+                for(var i=0; i<arr.length; i+=2){
+                    coords[i/2+1] = {X:arr[i], Y:arr[i+1]};
+                    if(i>0){
+                        var deltaX = coords[i/2+1].X - coords[i/2].X;
+                        var deltaY = coords[i/2+1].Y - coords[i/2].Y;
+                        num += Math.sqrt(deltaX*deltaX+deltaY*deltaY);
+                    }
+                }
+                coords[0] = coords[1];
+                coords[coords.length] = coords[coords.length-1];
+                for (var i = 1; i <= coords.length-3; i++){
+                    var a = [], b = [];
+                    arrs = {a:a, b:b};
+                    _SplineCoefficient(i, arrs, coords);
+                    var points = {};
+                    var oldpoints = {};
+                    for(var j=0;j<num;j++){
+                        var t = j/num;
+                        points.X = (arrs.a[0] + t * (arrs.a[1] + t * (arrs.a[2] + t * arrs.a[3])));
+                        points.Y = (arrs.b[0] + t * (arrs.b[1] + t * (arrs.b[2] + t * arrs.b[3])));
+                        ctx.lineTo(points.X + offX, points.Y + offY)
+                        oldpoints.X = points.X;
+                        oldpoints.Y = points.Y;
+                    }
+                }
+            }
+
+            function _SplineCoefficient(i, arrs, coords) {
+                arrs.a[3] = (-coords[i - 1].X + 3*coords[i].X - 3*coords[i + 1].X + coords[i + 2].X)/6;
+                arrs.a[2] = (coords[i - 1].X - 2*coords[i].X + coords[i + 1].X)/2;
+                arrs.a[1] = (-coords[i - 1].X + coords[i + 1].X)/2;
+                arrs.a[0] = (coords[i - 1].X + 4*coords[i].X + coords[i + 1].X)/6;
+                arrs.b[3] = (-coords[i - 1].Y + 3*coords[i].Y - 3*coords[i + 1].Y + coords[i + 2].Y)/6;
+                arrs.b[2] = (coords[i - 1].Y - 2*coords[i].Y + coords[i + 1].Y)/2;
+                arrs.b[1] = (-coords[i - 1].Y + coords[i + 1].Y)/2;
+                arrs.b[0] = (coords[i - 1].Y + 4*coords[i].Y + coords[i + 1].Y)/6;
+            }
+            var offX = 640;
+            var offY = 720;
+            var arr1 = [
+                -560, -80,
+                -560, -120,
+                -520, -120,
+                -520, -160,
+                -560, -200,
+                -560, -320,
+                -520, -360,
+                -400, -360,
+                -20, -520,
+                240, -320,
+                360, -360,
+                600, -315,
+                560, -80,
+                420, -80,
+                400, -60,
+                380, -150,
+                260, -150,
+                240, -60,
+                220, -80,
+                -220, -80,
+                -240, -60,
+                -260, -150,
+                -380, -150,
+                -400, -60,
+                -420, -80,
+                -588, -87
+            ];
+            ctx.beginPath();
+            drawSpline(arr1, offX, offY);
+            ctx.stroke();
+
+			circle(60, -320 + offX, -80 + offY);
+			circle(60, 320 + offX, -80 + offY);
+
+			function getRandomInt(min, max){
+				return Math.floor(Math.random() * (max - min + 1)) + min;
+			}
+			
+			for(var i=0;i<180;i++){
+				color[0]=124;
+				color[1]=105;
+				color[2]=232;
+				const a=getRandomInt(3,1277);
+                const b=getRandomInt(3,250);
+				const c=getRandomInt(2,7);
+				square(a, b, c, true);
+			}
+
+			for(var i=0;i<300;i++){
+				color[0]=96;
+				color[1]=232;
+				color[2]=118;
+				const a=getRandomInt(1,1280);
+				const b=getRandomInt(700, 720);
+				triangle([a, b, a+4, b, a+1, b-4], true);
+			}
+		</script>
+	</body>
+</html>
