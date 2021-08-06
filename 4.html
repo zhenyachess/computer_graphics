@@ -1,0 +1,253 @@
+<html>
+  <head>
+      <meta charset="UTF-8">
+      <title>lab_4_mzch</title>
+  </head>
+  <body>
+      <canvas id="canvas" width="700" height="700" style="border:5px solid #968CFF"></canvas>
+      <div>
+          <p>
+              <button onclick="polygon()">Draw</button>
+              <button onclick="clearCanvas()">Clear</button>
+          </p>
+          <p id="involvement"></p>
+      </div>
+      <script>
+          var canvas = document.getElementById("canvas");
+          var c = canvas.getContext("2d");
+          var inv = document.getElementById("involvement");
+
+          var prev_x = [];
+          var prev_y = [];
+
+          var x = [];
+          var y = [];
+
+          var arr_x = [];
+          var arr_y = [];
+
+          var len = 0;
+          var tr_arr_len = 0;
+          var drawned = false;
+          var change = false;
+
+          function put_pixel(x, y) {
+              c.fillRect(x-3, y-3, 6, 6);
+          }
+
+          function clearCanvas(){
+              c.clearRect(0, 0, canvas.width, canvas.height);
+              x = [];
+              y = [];
+              arr_x = [];
+              arr_y = [];
+              tr_arr_len = 0;
+              len = 0;
+              drawned = false;
+              change = false;
+          }
+
+          function line(i, j) {
+              c.beginPath();
+              c.moveTo(x[i], y[i]);
+              c.lineTo(x[j], y[j]);
+              c.closePath();
+              c.lineWidth=3;
+              c.strokeStyle = "#CDBBE8";
+              c.stroke();
+          }
+
+          function mul(a, b) {
+              return (a.x * b.y - b.x * a.y);
+          }
+
+           // Считает площадь треугольника
+          function calculateSqure(A, B, C) {
+              return 1/2 * Math.abs((B.x - A.x) * (C.y - A.y) - (C.x - A.x) * (B.y - A.y));
+          }
+
+          // Принадлежит ли точка треугольнику?
+          function inTriangle(A, B, C, D) {
+              return calculateSqure(A, B, C) === calculateSqure(A, B, D) + calculateSqure(A, C, D) + calculateSqure(B, D, C);
+          }
+
+          // Левая тройка векторов?
+          function isLeft(A, B, C) {
+              var AB = {
+                      x: B.x - A.x,
+                      y: B.y - A.y
+                  },
+                  AC = {
+                      x: C.x - A.x,
+                      y: C.y - A.y
+                  }
+              return AB.x * AC.y - AC.x * AB.y < 0;
+          }
+
+          function fill_trinagle(A, B, C){
+              c.beginPath();
+              c.moveTo(A.x, A.y);
+              c.lineTo(B.x, B.y);
+              c.lineTo(C.x, C.y);
+              c.lineTo(A.x, A.y);
+              c.stroke();
+              c.fillStyle="#4BE840";
+              c.fill();
+              c.closePath();
+          }
+
+          canvas.onmousedown = function(e) {
+              coords = {x: e.pageX-8,y: e.pageY-8};
+              coords.x = parseInt(coords.x);
+              coords.y = parseInt(coords.y);
+              if (drawned) {
+                  for (var i = 1; i < tr_arr_len; i+=3) {
+                      var AB = {x: arr_x[i] - arr_x[i - 1], y: arr_y[i] - arr_y[i - 1]};
+                      var BC = {x: arr_x[i + 1] - arr_x[i], y: arr_y[i + 1] - arr_y[i]};
+                      var CA = {x: arr_x[i - 1] - arr_x[i + 1], y: arr_y[i - 1] - arr_y[i + 1]};
+
+                      var PA = {x: arr_x[i - 1] - coords.x, y: arr_y[i - 1] - coords.y};
+                      var PB = {x: arr_x[i] - coords.x, y: arr_y[i] - coords.y};
+                      var PC = {x: arr_x[i + 1] - coords.x, y: arr_y[i + 1] - coords.y};
+
+                      var A = {x: arr_x[i-1], y: arr_y[i-1]};
+                      var B = {x: arr_x[i], y: arr_y[y]};
+                      var C = {x: arr_x[i+1], y: arr_y[y+1]};
+
+
+                      if (!isLeft(A, B, C) && mul(PA, AB) * mul(PB, BC) > 0 && mul(PA, AB) * mul(PC, CA) > 0 && mul(PB, BC) * mul(PC, CA) > 0) {
+                          c.fillStyle="#4BE840";
+                          put_pixel(coords.x, coords.y);
+                          inv.innerText="A point inside a polygon.";
+                          return;
+                      }
+                  }
+                  c.fillStyle="#E8202D"
+                  put_pixel(coords.x, coords.y);
+                  inv.innerText="A point outside a polygon.";
+              } else {
+                  x[len] = coords.x;
+                  y[len++] = coords.y;
+                  put_pixel(coords.x, coords.y);
+              }
+          }
+
+          function polygon() {
+              for (var i = 0; i < len; i++) {
+                  prev_x[i] = x[i];
+                  prev_y[i] = y[i];
+              }
+              c.beginPath();
+              for (var i = 1; i < x.length; i++){
+                  c.lineTo(x[i], y[i]);
+              }
+              c.lineTo(x[0], y[0]);
+              c.closePath();
+              c.lineWidth=3;
+              c.strokeStyle = "#CDBBE8";
+              c.stroke();
+              triangulate();
+              if(change){
+                  inv.innerText="Click to check the point.";
+              }
+              drawned = true;
+          }
+
+          function checkinTriangle(p, a, b, c) {
+              var AB = {x: x[b] - x[a], y: y[b] - y[a]};
+              var BC = {x: x[c] - x[b], y: y[c] - y[b]};
+              var CA = {x: x[a] - x[c], y: y[a] - y[c]};
+
+              var PA = {x: x[a] - x[p], y: y[a] - y[p]};
+              var PB = {x: x[b] - x[p], y: y[b] - y[p]};
+              var PC = {x: x[c] - x[p], y: y[c] - y[p]};
+
+              if(mul(PA, AB) * mul(PB, BC) > 0 && mul(PA, AB) * mul(PC, CA) > 0 && mul(PB, BC) * mul(PC, CA) > 0){
+                  return true;
+              }else{
+                  return false;
+              }
+          }
+
+          function triangulate() {
+              while (len > 3) {
+                  change = false;
+                  for (var i = 1; i < len; i++) {
+                      var AB = {x: x[i] - x[i - 1], y: y[i] - y[i - 1]};
+                      var AC = {x: x[i + 1] - x[i - 1], y: y[i + 1] - y[i - 1]};
+                      if (mul(AC, AB) >= 0){
+                          continue;
+                      }
+                      var check_tr = true;
+                      for (var j = 0; j < len; j++) {
+                          if (checkinTriangle(j, i - 1, i, i + 1)) {
+                              check_tr = false;
+                          }
+                      }
+                      if (check_tr) {
+                          change = true;
+                          line(i - 1, i + 1);
+
+                          arr_x[tr_arr_len] = x[i - 1];
+                          arr_y[tr_arr_len] = y[i - 1];
+                          tr_arr_len++;
+
+                          arr_x[tr_arr_len] = x[i];
+                          arr_y[tr_arr_len] = y[i];
+                          tr_arr_len++;
+
+                          arr_x[tr_arr_len] = x[i + 1];
+                          arr_y[tr_arr_len] = y[i + 1];
+                          tr_arr_len++;
+
+                          for (var j = i + 1; j < len; j++) {
+                              x[j - 1] = x[j];
+                              y[j - 1] = y[j];
+                          }
+                          len--;
+                          break;
+                      }
+                  }
+                  if (!change) {
+                      for (var i = 0; i < x.length; i++) {
+                          x[i] = prev_x[i];
+                          y[i] = prev_y[i];
+                      }
+                      var left = 0;
+                      var right = x.length - 1;
+                      while (left < right) {
+                          x[left] += x[right];
+                          x[right] = x[left] - x[right];
+                          x[left] -= x[right];
+                          y[left] += y[right];
+                          y[right] = y[left] - y[right];
+                          y[left] -= y[right];
+                          left++;
+                          right--;
+                      }
+                      arr_x = []
+                      arr_y = []
+                      tr_arr_len = 0;
+                      len = x.length;
+                      c.clearRect(0, 0, canvas.width, canvas.height);
+                      polygon();
+                      return;
+                  }
+              }
+              i = 1;
+
+              arr_x[tr_arr_len] = x[i - 1];
+              arr_y[tr_arr_len] = y[i - 1];
+              tr_arr_len++;
+
+              arr_x[tr_arr_len] = x[i];
+              arr_y[tr_arr_len] = y[i];
+              tr_arr_len++;
+
+              arr_x[tr_arr_len] = x[i + 1];
+              arr_y[tr_arr_len] = y[i + 1];
+              tr_arr_len++;
+          }
+      </script>
+  </body>
+</html>
